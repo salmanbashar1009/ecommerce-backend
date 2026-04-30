@@ -10,3 +10,6 @@ node_modules/
 dist/
 build/
 *.log
+__pycache__
+.venv
+alembic/versions/*.py

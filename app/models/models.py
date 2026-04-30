@@ -3,10 +3,10 @@ from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, Text
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+from app.models.base import Base
 
-Base = declarative_base()
 
-class user(Base):
+class User(Base):
     __tablename__ = 'users'
     id = Column(UUID(as_uuid = True),primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
@@ -64,6 +64,7 @@ class Category(Base):
 # Junction table for products and categories (many to many)
 class ProductCategory(Base):
     __tablename__ = "product_categories"
+
     product_id = Column(UUID(as_uuid=True), ForeignKey('products.id'), primary_key=True)
     category_id = Column(UUID(as_uuid=True), ForeignKey('categories.id'), primary_key=True)
 
