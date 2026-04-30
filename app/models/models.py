@@ -63,7 +63,7 @@ class Category(Base):
 
 # Junction table for products and categories (many to many)
 class ProductCategory(Base):
-    __tanblename__ = 'product_categories'
+    __tablename__ = "product_categories"
     product_id = Column(UUID(as_uuid=True), ForeignKey('products.id'), primary_key=True)
     category_id = Column(UUID(as_uuid=True), ForeignKey('categories.id'), primary_key=True)
 
@@ -154,7 +154,8 @@ class Order(Base):
     __tablename__ = "orders"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True) # Nullable for guest checkout
-    guest_email = Column(String(255), nullable=True)
+    guest_phone = Column(String(20), nullable=True)   # Primary for guest checkout
+    guest_email = Column(String(255), nullable=True)  # Optional fallback
     status = Column(Enum("pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "returned", name="order_status"), default="pending")
     total_amount = Column(Float(precision=2), nullable=False)
     discount_amount = Column(Float(precision=2), default=0.0)
@@ -164,6 +165,7 @@ class Order(Base):
     billing_address_id = Column(UUID(as_uuid=True), ForeignKey("addresses.id"))
     tracking_number = Column(String(255))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     user = relationship("User", back_populates="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
