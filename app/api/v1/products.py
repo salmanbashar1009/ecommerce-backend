@@ -20,7 +20,7 @@ async def get_products(
     skip: int = 0,
     limit: int = 20
     ):
-    stmt = select(Product).where(Product.isactive == True, Product.isdleted == False)
+    stmt = select(Product).where(Product.is_active == True, Product.is_deleted == False)
 
     if gender:
         stmt = stmt.where(Product.gender == gender)

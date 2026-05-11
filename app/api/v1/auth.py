@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.security import verify_password, create_access_token
+from app.core.security import verify_password, create_access_token, hash_password
 from app.models.models import User
 from app.schemas.schemas import UserLogin, Token, UserRegister
 import uuid
@@ -11,21 +12,36 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=Token)
 async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
-    stmt = User.__table__.select().where(User.email == user_data.email)
-    result = await db.execute(stmt)
-    if result.first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+    
+    # Check if email already exists
+    result = await db.execute(select(User).where(User.email == user_data.email)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Email already registered"
+        )
+    
+    # === FIXED: Use hash_password ===
+    hashed_password = hash_password(user_data.password)
     
     new_user = User(
-        id=uuid.uuid4(),
         email=user_data.email,
-        hashed_password=verify_password(user_data.password),
+        hashed_password=hashed_password,
         first_name=user_data.first_name,
-        last_name=user_data.last_name
+        last_name=user_data.last_name,
     )
+    
     db.add(new_user)
     await db.commit()
-    token = create_access_token({'sub':str(new_user.id), 'role': 'customer'})
+    await db.refresh(new_user)
+    
+    # Create access token
+    token = create_access_token({
+        'sub': str(new_user.id), 
+        'role': 'customer'
+    })
+    
     return Token(access_token=token, token_type="bearer")
 
 
