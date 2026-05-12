@@ -1,40 +1,59 @@
-import redis.asyncio as redis
 import json
-from app.core.config import settings
 from typing import Optional, Any
+
+import redis.asyncio as redis
+from app.core.config import settings
+
 
 class RedisCache:
     """
     Async Redis Cache Wrapper
-    Handles serialization, deserialization, and error safety.
+    Handles serialization, deserialization, and basic error safety.
     """
+
     def __init__(self):
         self.client = redis.from_url(
-            settings.REDIS_URL, 
+            settings.REDIS_URL,
             decode_responses=True
         )
 
-
-    async def get_cached_product(self, key:str)-> Optional[Any]:
-         """
-        Retrieve value from cache.
-        Returns None if key not found or on failure.
-        """
-         try:
-             cached_data = await self.client.get(key)
-             if cached_data is None:
-                 return None
-             return json.loads(cached_data)
-         except Exception:
-             return None
-         
-
-    async def set_cached_product(self, key:str, value:Any, expire_seconds:int = 3600) -> None:
-        """
-        Store value in cache with optional expiration.
-        """
+    async def get(self, key: str) -> Optional[Any]:
+        """Retrieve value from cache."""
         try:
-            serialized_value = json.dumps(value)
-            await self.client.set(key,serialized_value, ex=expire_seconds)
-        except Exception:
-            pass  # Fail silently on cache set errors to avoid impacting main flow
+            cached = await self.client.get(key)
+            return json.loads(cached) if cached else None
+        except Exception as e:
+            # TODO: replace with proper logging
+            print(f"Redis GET error: {e}")
+            return None
+
+    async def set(
+        self,
+        key: str,
+        value: Any,
+        expire_seconds: int = 3600
+    ) -> None:
+        """Store value in cache with expiration."""
+        try:
+            await self.client.set(
+                key,
+                json.dumps(value),
+                ex=expire_seconds
+            )
+        except Exception as e:
+            print(f"Redis SET error: {e}")
+
+    async def delete(self, key: str) -> None:
+        """Remove a key from cache."""
+        try:
+            await self.client.delete(key)
+        except Exception as e:
+            print(f"Redis DELETE error: {e}")
+
+    async def invalidate_product(self, slug: str) -> None:
+        """Invalidate product cache entry."""
+        await self.delete(self._product_key(slug))
+
+    @staticmethod
+    def _product_key(slug: str) -> str:
+        return f"product:{slug}"
