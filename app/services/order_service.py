@@ -4,6 +4,8 @@ from app.models.models import Order, OrderItem, ProductVariant, Coupon, Payment
 from app.schemas.schemas import OrderCreate
 from uuid import UUID
 from datetime import datetime
+from app.core.email import send_order_confirmation_email
+from app.models.models import User
 
 async def create_order(db: AsyncSession, user_id: UUID, payload: OrderCreate):
     # 1. Fetch Cart Items (Assuming cart is cleared after this)
@@ -80,4 +82,11 @@ async def create_order(db: AsyncSession, user_id: UUID, payload: OrderCreate):
     db.add(payment)
 
     await db.commit()
-    return new_order
+
+    # fetch user email to send confirmation email
+    user = await db.get(User, user_id)
+    if user:
+        # this will be run as a FAstAPI background task in the route handler
+        return new_order,send_order_confirmation_email(user.email, new_order.id)
+
+    return new_order, None

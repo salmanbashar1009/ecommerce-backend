@@ -47,25 +47,31 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
-    # Find user by email
-    stmt = User.__table__.select().where(User.email == credentials.email)
+    # Find user by email using ORM
+    stmt = select(User).where(User.email == credentials.email)
     result = await db.execute(stmt)
-    user_row = result.first()
+    user = result.scalar_one_or_none()   # Returns User instance or None
 
-    if not user_row:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid email or password"
+        )
     
-    user = user_row[0]  # Unpack the result
-
-    #verify password
-    if not verify_password(credentials.password, user_row.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    # Verify password
+    if not verify_password(credentials.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid email or password"
+        )
     
-    #create access token
-    token = create_access_token({'sub': str(user.id), 'role': 'customer'})
+    # Create access token
+    token = create_access_token({
+        'sub': str(user.id), 
+        'role': 'customer'
+    })
 
     return Token(access_token=token, token_type="bearer")
-
 
 @router.post('/geust-token', response_model=Token)
 async def guest_token():
